@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Tic Tac Toe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(20, 30px);
+            gap: 1px;
+            background-color: #e5e7eb;
+            overflow: auto;
+            width: 100%;
+            max-width: 600px;
+            height: 600px;
+            scroll-snap-type: both mandatory;
+            scroll-behavior: smooth;
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            background-color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            cursor: pointer;
+            border: 1px solid #d1d5db;
+            scroll-snap-align: center;
+        }
+        .cell.x {
+            color: black;
+        }
+        .cell.o {
+            color: red; /* AI moves (O) in red */
+        }
+        .cell:hover {
+            background-color: #f3f4f6;
+        }
+        .disabled {
+            cursor: not-allowed;
+            background-color: #f3f4f6;
+        }
+        @media (max-width: 640px) {
+            .cell {
+                width: 25px;
+                height: 25px;
+                font-size: 14px;
+            }
+            #game-board {
+                grid-template-columns: repeat(20, 25px);
+                max-width: 500px;
+                height: 500px;
+            }
+        }
+        #start-toggle {
+            margin-bottom: 20px;
+        }
+        footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
+    <h1 class="text-4xl font-bold mb-2">Infinite Tic Tac Toe</h1>
+    <p class="text-lg mb-4">First player to 5 in a row wins</p>
+    <div id="start-toggle" class="mb-4">
+        <label class="mr-2">Who starts first?</label>
+        <input type="radio" name="firstPlayer" id="humanFirst" value="X" checked>
+        <label for="humanFirst" class="mr-4">Human (X)</label>
+        <input type="radio" name="firstPlayer" id="aiFirst" value="O">
+        <label for="aiFirst">AI (O)</label>
+        <button id="startGame" class="ml-4 px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">Start Game</button>
+    </div>
+    <div id="status" class="mb-4 text-lg"></div>
+    <div id="game-board" class="mb-4"></div>
+    <button id="reset" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Reset Game</button>
+    <footer>(c)Copyright 2025, Mark McDowell</footer>
+
+    <!-- Audio elements for win sounds -->
+    <audio id="playerWinSound" src="data:audio/mp3;base64,/+MYxAABgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z"></audio>
+    <audio id="computerWinSound" src="data:audio/mp3;base64,/+MYxAABgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z"></audio>
+
+    <script>
+        const boardElement = document.getElementById('game-board');
+        const statusElement = document.getElementById('status');
+        const resetButton = document.getElementById('reset');
+        const startGameButton = document.getElementById('startGame');
+        const humanFirstRadio = document.getElementById('humanFirst');
+        const aiFirstRadio = document.getElementById('aiFirst');
+        const playerWinSound = document.getElementById('playerWinSound');
+        const computerWinSound = document.getElementById('computerWinSound');
+        let board = {};
+        let currentPlayer = 'X';
+        let gameActive = false;
+        const VIEW_SIZE = 20;
+        let lastPlayerMove = null;
+
+        function initializeBoard() {
+            board = {};
+            boardElement.innerHTML = '';
+            const center = Math.floor(VIEW_SIZE / 2);
+            for (let i = 0; i < VIEW_SIZE; i++) {
+                for (let j = 0; j < VIEW_SIZE; j++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell', 'disabled');
+                    cell.dataset.row = i - center;
+                    cell.dataset.col = j - center;
+                    cell.addEventListener('click', handleCellClick);
+                    boardElement.appendChild(cell);
+                }
+            }
+            boardElement.scrollTo({
+                left: (boardElement.scrollWidth - boardElement.clientWidth) / 2,
+                top: (boardElement.scrollHeight - boardElement.clientHeight) / 2,
+                behavior: 'smooth'
+            });
+            currentPlayer = humanFirstRadio.checked ? 'X' : 'O';
+            gameActive = true;
+            lastPlayerMove = null;
+            document.querySelectorAll('.cell').forEach(cell => cell.classList.remove('disabled'));
+            updateStatus();
+            if (currentPlayer === 'O') {
+                setTimeout(computerMove, 500);
+            }
+        }
+
+        function handleCellClick(e) {
+            if (!gameActive || currentPlayer !== 'X') return;
+            const row = parseInt(e.target.dataset.row);
+            const col = parseInt(e.target.dataset.col);
+            const key = `${row},${col}`;
+            if (board[key]) return;
+
+            lastPlayerMove = { row, col };
+            makeMove(row, col, 'X');
+            if (gameActive) {
+                setTimeout(computerMove, 500);
+            }
+        }
+
+        function makeMove(row, col, player) {
+            const key = `${row},${col}`;
+            board[key] = player;
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            if (cell) {
+                cell.textContent = player;
+                cell.classList.add('disabled', player.toLowerCase());
+            }
+            if (checkWin(row, col, player)) {
+                gameActive = false;
+                const outcome = player === 'X' ? 'You win!' : 'Computer wins!';
+                updateStatus(outcome);
+                try {
+                    const audio = player === 'X' ? playerWinSound : computerWinSound;
+                    audio.load();
+                    audio.play().catch(e => console.log('Audio play failed:', e));
+                } catch (e) {
+                    alert(`${outcome} (Sound playback failed)`);
+                }
+                return;
+            }
+            if (Object.keys(board).length >= VIEW_SIZE * VIEW_SIZE) {
+                gameActive = false;
+                updateStatus('Game is a draw!');
+                return;
+            }
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            updateStatus();
+        }
+
+        function checkWin(row, col, player) {
+            const directions = [
+                [0, 1], [1, 0], [1, 1], [-1, 1]
+            ];
+            for (const [dr, dc] of directions) {
+                let count = 1;
+                for (let step = 1; step <= 4; step++) {
+                    if (board[`${row + step * dr},${col + step * dc}`] === player) count++;
+                    else break;
+                }
+                for (let step = 1; step <= 4; step++) {
+                    if (board[`${row - step * dr},${col - step * dc}`] === player) count++;
+                    else break;
+                }
+                if (count >= 5) return true;
+            }
+            return false;
+        }
+
+        function updateStatus(message = '') {
+            if (message) {
+                statusElement.textContent = message;
+            } else {
+                statusElement.textContent = `Current Player: ${currentPlayer === 'X' ? 'You' : 'Computer'}`;
+            }
+        }
+
+        function computerMove() {
+            let move = expertMove();
+            if (move) {
+                console.log(`AI move: (${move.row},${move.col})`);
+                makeMove(move.row, move.col, 'O');
+            }
+        }
+
+        function getValidMoves() {
+            const moves = [];
+            const center = Math.floor(VIEW_SIZE / 2);
+            const occupiedKeys = Object.keys(board);
+            if (occupiedKeys.length === 0) {
+                return [{ row: 0, col: 0 }];
+            }
+            const occupied = occupiedKeys.map(key => {
+                const [r, c] = key.split(',').map(Number);
+                return { row: r, col: c };
+            });
+            const ref = lastPlayerMove || occupied[0];
+            for (let row = ref.row - 3; row <= ref.row + 3; row++) {
+                for (let col = ref.col - 3; col <= ref.col + 3; col++) {
+                    if (Math.abs(row) <= center && Math.abs(col) <= center && !board[`${row},${col}`]) {
+                        moves.push({ row, col });
+                    }
+                }
+            }
+            return moves.length > 0 ? moves : [{ row: 0, col: 0 }];
+        }
+
+        function checkStreak(row, col, player, length, mustOpenEnded = false) {
+            const directions = [[0, 1], [1, 0], [1, 1], [-1, 1]];
+            const results = [];
+            for (const [dr, dc] of directions) {
+                let count = 1;
+                let startOpen = false;
+                let endOpen = false;
+                let startPos = null;
+                let endPos = null;
+                for (let step = 1; step < length; step++) {
+                    const key = `${row + step * dr},${col + step * dc}`;
+                    if (board[key] === player) count++;
+                    else {
+                        if (!board[key]) {
+                            endPos = { row: row + step * dr, col: col + step * dc };
+                            endOpen = true;
+                        }
+                        break;
+                    }
+                }
+                for (let step = 1; step < length; step++) {
+                    const key = `${row - step * dr},${col - step * dc}`;
+                    if (board[key] === player) count++;
+                    else {
+                        if (!board[key]) {
+                            startPos = { row: row - step * dr, col: col - step * dc };
+                            startOpen = true;
+                        }
+                        break;
+                    }
+                }
+                if (count >= length && (!mustOpenEnded || (startOpen && endOpen))) {
+                    if (startOpen) results.push(startPos);
+                    if (endOpen) results.push(endPos);
+                }
+            }
+            return results.filter(pos => pos);
+        }
+
+        function evaluateMove(row, col, player) {
+            let score = 0;
+            const tempBoard = { ...board, [`${row},${col}`]: player };
+            const opp = player === 'X' ? 'O' : 'X';
+            const tempBoardOpp = { ...board, [`${row},${col}`]: opp };
+
+            if (checkWin(row, col, player)) return 10000000;
+            if (checkWin(row, col, opp)) return 5000000;
+
+            const playerFour = checkStreak(row, col, opp, 4, true);
+            if (playerFour.length > 0) score += 2000000 * playerFour.length;
+
+            const aiFour = checkStreak(row, col, player, 4, true);
+            if (aiFour.length > 0) score += 5000000 * aiFour.length;
+
+            const playerThree = checkStreak(row, col, opp, 3, true);
+            if (playerThree.length > 0) score += (playerThree.length > 1 ? 1000000 : 600000) * playerThree.length;
+
+            const aiThree = checkStreak(row, col, player, 3, true);
+            if (aiThree.length > 0) score += 2000000 * aiThree.length;
+
+            const playerTwo = checkStreak(row, col, opp, 2, true);
+            if (playerTwo.length > 0) score += 100000 * playerTwo.length;
+
+            const aiTwo = checkStreak(row, col, player, 2, true);
+            if (aiTwo.length > 0) score += 200000 * aiTwo.length;
+
+            if (aiFour.length + aiThree.length + aiTwo.length > 1) score += 2000000;
+
+            const occupied = Object.keys(board).map(key => {
+                const [r, c] = key.split(',').map(Number);
+                return { row: r, col: c };
+            });
+            const distance = Math.min(...occupied.filter(p => board[`${p.row},${p.col}`] === opp)
+                .map(p => Math.sqrt((row - p.row) ** 2 + (col - p.col) ** 2)), 1000);
+            score += distance < 4 ? 10000 : 2000;
+
+            return score;
+        }
+
+        function expertMove() {
+            const moves = getValidMoves();
+            let maxScore = -Infinity;
+            let bestMove = null;
+            for (const move of moves) {
+                const score = evaluateMove(move.row, move.col, 'O');
+                console.log(`Evaluating move: (${move.row},${move.col}), score: ${score}`);
+                if (score > maxScore) {
+                    maxScore = score;
+                    bestMove = move;
+                }
+            }
+            console.log(`Selected move: (${bestMove.row},${bestMove.col}) with score: ${maxScore}`);
+            return bestMove || moves[0];
+        }
+
+        startGameButton.addEventListener('click', initializeBoard);
+        resetButton.addEventListener('click', initializeBoard);
+        initializeBoard();
+    </script>
+</body>
+</html>
