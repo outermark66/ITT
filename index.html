@@ -106,6 +106,26 @@
                 makeMove(move.x, move.y, aiPlayer);
                 return;
             }
+            move = findCreatingMove(aiPlayer, 4);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findForkMove(aiPlayer, 3);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findCreatingMove(aiPlayer, 3);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findForkMove(aiPlayer, 2);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
             move = findCreatingMove(humanPlayer, 4);
             if (move) {
                 makeMove(move.x, move.y, aiPlayer);
@@ -117,26 +137,6 @@
                 return;
             }
             move = findMove(aiPlayer, humanPlayer, 2);
-            if (move) {
-                makeMove(move.x, move.y, aiPlayer);
-                return;
-            }
-            move = findCreatingMove(aiPlayer, 4);
-            if (move) {
-                makeMove(move.x, move.y, aiPlayer);
-                return;
-            }
-            move = findCreatingMove(aiPlayer, 3);
-            if (move) {
-                makeMove(move.x, move.y, aiPlayer);
-                return;
-            }
-            move = findForkMove(aiPlayer, 3);
-            if (move) {
-                makeMove(move.x, move.y, aiPlayer);
-                return;
-            }
-            move = findForkMove(aiPlayer, 2);
             if (move) {
                 makeMove(move.x, move.y, aiPlayer);
                 return;
