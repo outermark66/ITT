@@ -4,330 +4,389 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Infinite Tic Tac Toe</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        #game-board {
-            display: grid;
-            grid-template-columns: repeat(20, 30px);
-            gap: 1px;
-            background-color: #e5e7eb;
-            overflow: auto;
-            width: 100%;
-            max-width: 600px;
-            height: 600px;
-            scroll-snap-type: both mandatory;
-            scroll-behavior: smooth;
-        }
-        .cell {
-            width: 30px;
-            height: 30px;
-            background-color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            cursor: pointer;
-            border: 1px solid #d1d5db;
-            scroll-snap-align: center;
-        }
-        .cell.x {
-            color: black;
-        }
-        .cell.o {
-            color: red; /* AI moves (O) in red */
-        }
-        .cell:hover {
-            background-color: #f3f4f6;
-        }
-        .disabled {
-            cursor: not-allowed;
-            background-color: #f3f4f6;
-        }
-        @media (max-width: 640px) {
-            .cell {
-                width: 25px;
-                height: 25px;
-                font-size: 14px;
-            }
-            #game-board {
-                grid-template-columns: repeat(20, 25px);
-                max-width: 500px;
-                height: 500px;
-            }
-        }
-        #start-toggle {
-            margin-bottom: 20px;
-        }
-        footer {
-            margin-top: 20px;
-            font-size: 12px;
-            color: #6b7280;
-        }
+        body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 10px; }
+        #title { font-size: 24px; font-weight: bold; }
+        #instruction { font-size: 18px; }
+        #board-container { position: relative; margin: 20px auto; border: 1px solid #000; overflow: auto; max-width: 100%; max-height: 80vh; }
+        #board { display: grid; grid-template-columns: repeat(30, 40px); }
+        .cell { width: 40px; height: 40px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; }
+        .cell:hover { background: #f0f0f0; }
+        button { margin: 10px; font-size: 16px; }
+        #copyright { font-size: 12px; margin-top: 10px; }
     </style>
 </head>
-<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
-    <h1 class="text-4xl font-bold mb-2">Infinite Tic Tac Toe</h1>
-    <p class="text-lg mb-4">First player to 5 in a row wins</p>
-    <div id="start-toggle" class="mb-4">
-        <label class="mr-2">Who starts first?</label>
-        <input type="radio" name="firstPlayer" id="humanFirst" value="X" checked>
-        <label for="humanFirst" class="mr-4">Human (X)</label>
-        <input type="radio" name="firstPlayer" id="aiFirst" value="O">
-        <label for="aiFirst">AI (O)</label>
-        <button id="startGame" class="ml-4 px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">Start Game</button>
+<body>
+    <div id="title">Infinite Tic Tac Toe</div>
+    <div id="instruction">First player to 5 in a row wins</div>
+    <div>
+        <button onclick="startGame('X')">Player (X) First</button>
+        <button onclick="startGame('O')">AI (O) First</button>
     </div>
-    <div id="status" class="mb-4 text-lg"></div>
-    <div id="game-board" class="mb-4"></div>
-    <button id="reset" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Reset Game</button>
-    <footer>(c)Copyright 2025, Mark McDowell</footer>
-
-    <!-- Audio elements for win sounds -->
-    <audio id="playerWinSound" src="data:audio/mp3;base64,/+MYxAABgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z"></audio>
-    <audio id="computerWinSound" src="data:audio/mp3;base64,/+MYxAABgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z/+MYxAAMgAF2AAABz/8AAAP/+3f/Z"></audio>
+    <div id="board-container">
+        <div id="board"></div>
+        <div id="overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; justify-content: center; align-items: center; font-size: 100px; color: red; pointer-events: none;"></div>
+    </div>
+    <div id="copyright">(c) Copyright 2025, Mark McDowell</div>
+    <audio id="humanWinSound" src="https://www.soundjay.com/buttons/sounds/button-7.mp3"></audio>
+    <audio id="aiLoseSound" src="https://www.soundjay.com/buttons/sounds/button-4.mp3"></audio>
+    <audio id="drawSound" src="https://www.soundjay.com/buttons/sounds/button-8.mp3"></audio>
 
     <script>
-        const boardElement = document.getElementById('game-board');
-        const statusElement = document.getElementById('status');
-        const resetButton = document.getElementById('reset');
-        const startGameButton = document.getElementById('startGame');
-        const humanFirstRadio = document.getElementById('humanFirst');
-        const aiFirstRadio = document.getElementById('aiFirst');
-        const playerWinSound = document.getElementById('playerWinSound');
-        const computerWinSound = document.getElementById('computerWinSound');
+        let gridSize = 30;
+        let cellSize = 40;
         let board = {};
         let currentPlayer = 'X';
-        let gameActive = false;
-        const VIEW_SIZE = 20;
-        let lastPlayerMove = null;
+        let aiPlayer = 'O';
+        let humanPlayer = 'X';
+        let gameOver = false;
+        const directions = [[1,0], [0,1], [1,1], [1,-1]];
+        let winningCells = new Set();
 
-        function initializeBoard() {
+        function startGame(first) {
             board = {};
-            boardElement.innerHTML = '';
-            const center = Math.floor(VIEW_SIZE / 2);
-            for (let i = 0; i < VIEW_SIZE; i++) {
-                for (let j = 0; j < VIEW_SIZE; j++) {
+            currentPlayer = first;
+            humanPlayer = 'X';
+            aiPlayer = 'O';
+            gameOver = false;
+            winningCells = new Set();
+            document.getElementById('overlay').style.display = 'none';
+            renderBoard();
+            if (currentPlayer === aiPlayer) aiMove();
+        }
+
+        function renderBoard() {
+            const boardDiv = document.getElementById('board');
+            boardDiv.style.gridTemplateColumns = `repeat(${gridSize}, ${cellSize}px)`;
+            boardDiv.innerHTML = '';
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
+                    const key = `${x},${y}`;
                     const cell = document.createElement('div');
-                    cell.classList.add('cell', 'disabled');
-                    cell.dataset.row = i - center;
-                    cell.dataset.col = j - center;
-                    cell.addEventListener('click', handleCellClick);
-                    boardElement.appendChild(cell);
+                    cell.className = 'cell';
+                    cell.textContent = board[key] || '';
+                    let color = '';
+                    if (board[key] === 'X') color = 'red';
+                    if (winningCells.has(key)) color = 'blue';
+                    cell.style.color = color;
+                    cell.onclick = () => humanMove(x, y);
+                    boardDiv.appendChild(cell);
                 }
-            }
-            boardElement.scrollTo({
-                left: (boardElement.scrollWidth - boardElement.clientWidth) / 2,
-                top: (boardElement.scrollHeight - boardElement.clientHeight) / 2,
-                behavior: 'smooth'
-            });
-            currentPlayer = humanFirstRadio.checked ? 'X' : 'O';
-            gameActive = true;
-            lastPlayerMove = null;
-            document.querySelectorAll('.cell').forEach(cell => cell.classList.remove('disabled'));
-            updateStatus();
-            if (currentPlayer === 'O') {
-                setTimeout(computerMove, 500);
             }
         }
 
-        function handleCellClick(e) {
-            if (!gameActive || currentPlayer !== 'X') return;
-            const row = parseInt(e.target.dataset.row);
-            const col = parseInt(e.target.dataset.col);
-            const key = `${row},${col}`;
+        function humanMove(x, y) {
+            if (gameOver || currentPlayer !== humanPlayer) return;
+            const key = `${x},${y}`;
             if (board[key]) return;
-
-            lastPlayerMove = { row, col };
-            makeMove(row, col, 'X');
-            if (gameActive) {
-                setTimeout(computerMove, 500);
+            board[key] = humanPlayer;
+            let won = checkWin(x, y, humanPlayer, false);
+            if (won) {
+                markWinningCells(x, y, humanPlayer);
+                document.getElementById('humanWinSound').play();
+                gameOver = true;
+            } else if (Object.keys(board).length >= 60) {
+                handleDraw();
+            } else {
+                currentPlayer = aiPlayer;
+                aiMove();
+                return;
             }
+            renderBoard();
         }
 
-        function makeMove(row, col, player) {
-            const key = `${row},${col}`;
+        function aiMove() {
+            let move = findWinningMove(aiPlayer);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findWinningMove(humanPlayer);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findCreatingMove(humanPlayer, 4);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findMove(aiPlayer, humanPlayer, 3);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findMove(aiPlayer, humanPlayer, 2);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findCreatingMove(aiPlayer, 4);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findCreatingMove(aiPlayer, 3);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findForkMove(aiPlayer, 3);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findForkMove(aiPlayer, 2);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            makeAdjacentMove();
+        }
+
+        function makeMove(x, y, player) {
+            if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) {
+                alert('Board edge reached.');
+                gameOver = true;
+                return;
+            }
+            const key = `${x},${y}`;
             board[key] = player;
-            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
-            if (cell) {
-                cell.textContent = player;
-                cell.classList.add('disabled', player.toLowerCase());
+            let won = checkWin(x, y, player, false);
+            if (won) {
+                markWinningCells(x, y, player);
+                document.getElementById('aiLoseSound').play();
+                gameOver = true;
+            } else if (Object.keys(board).length >= 60) {
+                handleDraw();
+            } else {
+                currentPlayer = humanPlayer;
             }
-            if (checkWin(row, col, player)) {
-                gameActive = false;
-                const outcome = player === 'X' ? 'You win!' : 'Computer wins!';
-                updateStatus(outcome);
-                try {
-                    const audio = player === 'X' ? playerWinSound : computerWinSound;
-                    audio.load();
-                    audio.play().catch(e => console.log('Audio play failed:', e));
-                } catch (e) {
-                    alert(`${outcome} (Sound playback failed)`);
-                }
-                return;
-            }
-            if (Object.keys(board).length >= VIEW_SIZE * VIEW_SIZE) {
-                gameActive = false;
-                updateStatus('Game is a draw!');
-                return;
-            }
-            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-            updateStatus();
+            renderBoard();
         }
 
-        function checkWin(row, col, player) {
-            const directions = [
-                [0, 1], [1, 0], [1, 1], [-1, 1]
-            ];
-            for (const [dr, dc] of directions) {
-                let count = 1;
-                for (let step = 1; step <= 4; step++) {
-                    if (board[`${row + step * dr},${col + step * dc}`] === player) count++;
-                    else break;
+        function checkWin(x, y, player, addToWinningCells = false) {
+            let won = false;
+            for (let [dx, dy] of directions) {
+                let countPos = countInDir(x, y, dx, dy, player);
+                let countNeg = countInDir(x, y, -dx, -dy, player);
+                if (countPos + countNeg + 1 >= 5) {
+                    won = true;
+                    if (addToWinningCells) {
+                        for (let i = -countNeg; i <= countPos; i++) {
+                            let cx = x + i * dx;
+                            let cy = y + i * dy;
+                            winningCells.add(`${cx},${cy}`);
+                        }
+                    }
                 }
-                for (let step = 1; step <= 4; step++) {
-                    if (board[`${row - step * dr},${col - step * dc}`] === player) count++;
-                    else break;
+            }
+            return won;
+        }
+
+        function markWinningCells(x, y, player) {
+            for (let [dx, dy] of directions) {
+                let countPos = countInDir(x, y, dx, dy, player);
+                let countNeg = countInDir(x, y, -dx, -dy, player);
+                if (countPos + countNeg + 1 >= 5) {
+                    for (let i = -countNeg; i <= countPos; i++) {
+                        let cx = x + i * dx;
+                        let cy = y + i * dy;
+                        winningCells.add(`${cx},${cy}`);
+                    }
                 }
-                if (count >= 5) return true;
+            }
+        }
+
+        function countInDir(x, y, dx, dy, player) {
+            let count = 0;
+            let cx = x + dx, cy = y + dy;
+            while (board[`${cx},${cy}`] === player) {
+                count++;
+                cx += dx;
+                cy += dy;
+            }
+            return count;
+        }
+
+        function isOpen(x, y) {
+            return x >= 0 && x < gridSize && y >= 0 && y < gridSize && !board[`${x},${y}`];
+        }
+
+        function hasOpenN(player, n) {
+            for (let key in board) {
+                if (board[key] !== player) continue;
+                let [x, y] = key.split(',').map(Number);
+                for (let [dx, dy] of directions) {
+                    let countPos = countInDir(x, y, dx, dy, player);
+                    let countNeg = countInDir(x, y, -dx, -dy, player);
+                    if (countPos + countNeg + 1 === n) {
+                        let ex1 = x + (countPos + 1) * dx;
+                        let ey1 = y + (countPos + 1) * dy;
+                        let ex2 = x - (countNeg + 1) * dx;
+                        let ey2 = y - (countNeg + 1) * dy;
+                        if (isOpen(ex1, ey1) && isOpen(ex2, ey2)) {
+                            return true;
+                        }
+                    }
+                }
             }
             return false;
         }
 
-        function updateStatus(message = '') {
-            if (message) {
-                statusElement.textContent = message;
-            } else {
-                statusElement.textContent = `Current Player: ${currentPlayer === 'X' ? 'You' : 'Computer'}`;
-            }
-        }
-
-        function computerMove() {
-            let move = expertMove();
-            if (move) {
-                console.log(`AI move: (${move.row},${move.col})`);
-                makeMove(move.row, move.col, 'O');
-            }
-        }
-
-        function getValidMoves() {
-            const moves = [];
-            const center = Math.floor(VIEW_SIZE / 2);
-            const occupiedKeys = Object.keys(board);
-            if (occupiedKeys.length === 0) {
-                return [{ row: 0, col: 0 }];
-            }
-            const occupied = occupiedKeys.map(key => {
-                const [r, c] = key.split(',').map(Number);
-                return { row: r, col: c };
-            });
-            const ref = lastPlayerMove || occupied[0];
-            for (let row = ref.row - 3; row <= ref.row + 3; row++) {
-                for (let col = ref.col - 3; col <= ref.col + 3; col++) {
-                    if (Math.abs(row) <= center && Math.abs(col) <= center && !board[`${row},${col}`]) {
-                        moves.push({ row, col });
-                    }
+        function findWinningMove(player) {
+            let possibles = getPossibleMoves();
+            shuffle(possibles);
+            for (let [px, py] of possibles) {
+                let key = `${px},${py}`;
+                board[key] = player;
+                if (checkWin(px, py, player, false)) {
+                    delete board[key];
+                    return {x: px, y: py};
                 }
+                delete board[key];
             }
-            return moves.length > 0 ? moves : [{ row: 0, col: 0 }];
+            return null;
         }
 
-        function checkStreak(row, col, player, length, mustOpenEnded = false) {
-            const directions = [[0, 1], [1, 0], [1, 1], [-1, 1]];
-            const results = [];
-            for (const [dr, dc] of directions) {
-                let count = 1;
-                let startOpen = false;
-                let endOpen = false;
-                let startPos = null;
-                let endPos = null;
-                for (let step = 1; step < length; step++) {
-                    const key = `${row + step * dr},${col + step * dc}`;
-                    if (board[key] === player) count++;
-                    else {
-                        if (!board[key]) {
-                            endPos = { row: row + step * dr, col: col + step * dc };
-                            endOpen = true;
+        function findCreatingMove(player, n) {
+            let possibles = getPossibleMoves();
+            shuffle(possibles);
+            for (let [px, py] of possibles) {
+                let key = `${px},${py}`;
+                board[key] = player;
+                let creates = hasOpenN(player, n);
+                delete board[key];
+                if (creates) return {x: px, y: py};
+            }
+            return null;
+        }
+
+        function findMove(player, target, length) {
+            for (let key in board) {
+                if (board[key] !== target) continue;
+                let [x, y] = key.split(',').map(Number);
+                for (let [dx, dy] of directions) {
+                    let countPos = countInDir(x, y, dx, dy, target);
+                    let countNeg = countInDir(x, y, -dx, -dy, target);
+                    let count = countPos + countNeg + 1;
+                    if (count === length) {
+                        let ex = x + dx * (countPos + 1);
+                        let ey = y + dy * (countPos + 1);
+                        if (isOpen(ex, ey)) {
+                            let isGood = true;
+                            if (target === player && length === 3) {
+                                let sx = x - dx * countNeg;
+                                let sy = y - dy * countNeg;
+                                let o1x = sx - dx;
+                                let o1y = sy - dy;
+                                let o2x = ex + dx;
+                                let o2y = ey + dy;
+                                if (!isOpen(o1x, o1y) || !isOpen(o2x, o2y)) isGood = false;
+                            }
+                            if (isGood) return {x: ex, y: ey};
                         }
-                        break;
-                    }
-                }
-                for (let step = 1; step < length; step++) {
-                    const key = `${row - step * dr},${col - step * dc}`;
-                    if (board[key] === player) count++;
-                    else {
-                        if (!board[key]) {
-                            startPos = { row: row - step * dr, col: col - step * dc };
-                            startOpen = true;
+                        ex = x - dx * (countNeg + 1);
+                        ey = y - dy * (countNeg + 1);
+                        if (isOpen(ex, ey)) {
+                            let isGood = true;
+                            if (target === player && length === 3) {
+                                let exx = x + dx * countPos;
+                                let eyy = y + dy * countPos;
+                                let o2x = exx + dx;
+                                let o2y = eyy + dy;
+                                let o1x = ex - dx;
+                                let o1y = ey - dy;
+                                if (!isOpen(o1x, o1y) || !isOpen(o2x, o2y)) isGood = false;
+                            }
+                            if (isGood) return {x: ex, y: ey};
                         }
-                        break;
                     }
                 }
-                if (count >= length && (!mustOpenEnded || (startOpen && endOpen))) {
-                    if (startOpen) results.push(startPos);
-                    if (endOpen) results.push(endPos);
+            }
+            return null;
+        }
+
+        function getPossibleMoves() {
+            const keys = Object.keys(board);
+            if (keys.length === 0) return [[Math.floor(gridSize / 2), Math.floor(gridSize / 2)]];
+            const occupied = new Set(keys);
+            const possible = new Set();
+            for (let key of keys) {
+                let [ox, oy] = key.split(',').map(Number);
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        if (dx === 0 && dy === 0) continue;
+                        let px = ox + dx;
+                        let py = oy + dy;
+                        if (px >= 0 && px < gridSize && py >= 0 && py < gridSize && !occupied.has(`${px},${py}`)) {
+                            possible.add(`${px},${py}`);
+                        }
+                    }
                 }
             }
-            return results.filter(pos => pos);
+            return Array.from(possible).map(k => k.split(',').map(Number));
         }
 
-        function evaluateMove(row, col, player) {
-            let score = 0;
-            const tempBoard = { ...board, [`${row},${col}`]: player };
-            const opp = player === 'X' ? 'O' : 'X';
-            const tempBoardOpp = { ...board, [`${row},${col}`]: opp };
-
-            if (checkWin(row, col, player)) return 10000000;
-            if (checkWin(row, col, opp)) return 5000000;
-
-            const playerFour = checkStreak(row, col, opp, 4, true);
-            if (playerFour.length > 0) score += 2000000 * playerFour.length;
-
-            const aiFour = checkStreak(row, col, player, 4, true);
-            if (aiFour.length > 0) score += 5000000 * aiFour.length;
-
-            const playerThree = checkStreak(row, col, opp, 3, true);
-            if (playerThree.length > 0) score += (playerThree.length > 1 ? 1000000 : 600000) * playerThree.length;
-
-            const aiThree = checkStreak(row, col, player, 3, true);
-            if (aiThree.length > 0) score += 2000000 * aiThree.length;
-
-            const playerTwo = checkStreak(row, col, opp, 2, true);
-            if (playerTwo.length > 0) score += 100000 * playerTwo.length;
-
-            const aiTwo = checkStreak(row, col, player, 2, true);
-            if (aiTwo.length > 0) score += 200000 * aiTwo.length;
-
-            if (aiFour.length + aiThree.length + aiTwo.length > 1) score += 2000000;
-
-            const occupied = Object.keys(board).map(key => {
-                const [r, c] = key.split(',').map(Number);
-                return { row: r, col: c };
-            });
-            const distance = Math.min(...occupied.filter(p => board[`${p.row},${p.col}`] === opp)
-                .map(p => Math.sqrt((row - p.row) ** 2 + (col - p.col) ** 2)), 1000);
-            score += distance < 4 ? 10000 : 2000;
-
-            return score;
-        }
-
-        function expertMove() {
-            const moves = getValidMoves();
-            let maxScore = -Infinity;
-            let bestMove = null;
-            for (const move of moves) {
-                const score = evaluateMove(move.row, move.col, 'O');
-                console.log(`Evaluating move: (${move.row},${move.col}), score: ${score}`);
-                if (score > maxScore) {
-                    maxScore = score;
-                    bestMove = move;
-                }
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
             }
-            console.log(`Selected move: (${bestMove.row},${bestMove.col}) with score: ${maxScore}`);
-            return bestMove || moves[0];
         }
 
-        startGameButton.addEventListener('click', initializeBoard);
-        resetButton.addEventListener('click', initializeBoard);
-        initializeBoard();
+        function findForkMove(player, threatLength = 3) {
+            let possibles = getPossibleMoves();
+            shuffle(possibles);
+            for (let [px, py] of possibles) {
+                board[`${px},${py}`] = player;
+                let numThreats = 0;
+                for (let [dx, dy] of directions) {
+                    let count = 1 + countInDir(px, py, dx, dy, player) + countInDir(px, py, -dx, -dy, player);
+                    if (count >= threatLength) numThreats++;
+                }
+                delete board[`${px},${py}`];
+                if (numThreats >= 2) return {x: px, y: py};
+            }
+            return null;
+        }
+
+        function makeAdjacentMove() {
+            let possibles = getPossibleMoves();
+            if (possibles.length === 0) {
+                makeMove(Math.floor(gridSize / 2), Math.floor(gridSize / 2), aiPlayer);
+                return;
+            }
+            let opponentAdj = [];
+            for (let [px, py] of possibles) {
+                let adjToOpp = false;
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        if (dx === 0 && dy === 0) continue;
+                        let nx = px + dx, ny = py + dy;
+                        if (board[`${nx},${ny}`] === humanPlayer) {
+                            adjToOpp = true;
+                            break;
+                        }
+                    }
+                    if (adjToOpp) break;
+                }
+                if (adjToOpp) opponentAdj.push([px, py]);
+            }
+            let chosen = opponentAdj.length > 0 ? opponentAdj : possibles;
+            let idx = Math.floor(Math.random() * chosen.length);
+            let [x, y] = chosen[idx];
+            makeMove(x, y, aiPlayer);
+        }
+
+        function handleDraw() {
+            gameOver = true;
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('overlay').textContent = 'DRAW';
+            document.getElementById('drawSound').play();
+        }
+
+        renderBoard();
     </script>
 </body>
 </html>
