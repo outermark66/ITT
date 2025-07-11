@@ -111,7 +111,17 @@
                 makeMove(move.x, move.y, aiPlayer);
                 return;
             }
+            move = findCreatingMove(humanPlayer, 4);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
             move = findForkMove(aiPlayer, 3);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findBlockFork(humanPlayer, 3);
             if (move) {
                 makeMove(move.x, move.y, aiPlayer);
                 return;
@@ -121,22 +131,32 @@
                 makeMove(move.x, move.y, aiPlayer);
                 return;
             }
-            move = findForkMove(aiPlayer, 2);
-            if (move) {
-                makeMove(move.x, move.y, aiPlayer);
-                return;
-            }
-            move = findCreatingMove(humanPlayer, 4);
-            if (move) {
-                makeMove(move.x, move.y, aiPlayer);
-                return;
-            }
             move = findMove(aiPlayer, humanPlayer, 3);
             if (move) {
                 makeMove(move.x, move.y, aiPlayer);
                 return;
             }
+            move = findForkMove(aiPlayer, 2);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findBlockFork(humanPlayer, 2);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
             move = findMove(aiPlayer, humanPlayer, 2);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findMove(aiPlayer, aiPlayer, 2);
+            if (move) {
+                makeMove(move.x, move.y, aiPlayer);
+                return;
+            }
+            move = findCreatingMove(aiPlayer, 2);
             if (move) {
                 makeMove(move.x, move.y, aiPlayer);
                 return;
@@ -216,15 +236,15 @@
         function hasOpenN(player, n) {
             for (let key in board) {
                 if (board[key] !== player) continue;
-                let [x, y] = key.split(',').map(Number);
+                let [sx, sy] = key.split(',').map(Number);
                 for (let [dx, dy] of directions) {
-                    let countPos = countInDir(x, y, dx, dy, player);
-                    let countNeg = countInDir(x, y, -dx, -dy, player);
+                    let countPos = countInDir(sx, sy, dx, dy, player);
+                    let countNeg = countInDir(sx, sy, -dx, -dy, player);
                     if (countPos + countNeg + 1 === n) {
-                        let ex1 = x + (countPos + 1) * dx;
-                        let ey1 = y + (countPos + 1) * dy;
-                        let ex2 = x - (countNeg + 1) * dx;
-                        let ey2 = y - (countNeg + 1) * dy;
+                        let ex1 = sx + (countPos + 1) * dx;
+                        let ey1 = sy + (countPos + 1) * dy;
+                        let ex2 = sx - (countNeg + 1) * dx;
+                        let ey2 = sy - (countNeg + 1) * dy;
                         if (isOpen(ex1, ey1) && isOpen(ex2, ey2)) {
                             return true;
                         }
@@ -343,6 +363,22 @@
                 let numThreats = 0;
                 for (let [dx, dy] of directions) {
                     let count = 1 + countInDir(px, py, dx, dy, player) + countInDir(px, py, -dx, -dy, player);
+                    if (count >= threatLength) numThreats++;
+                }
+                delete board[`${px},${py}`];
+                if (numThreats >= 2) return {x: px, y: py};
+            }
+            return null;
+        }
+
+        function findBlockFork(opponent, threatLength = 3) {
+            let possibles = getPossibleMoves();
+            shuffle(possibles);
+            for (let [px, py] of possibles) {
+                board[`${px},${py}`] = opponent;
+                let numThreats = 0;
+                for (let [dx, dy] of directions) {
+                    let count = 1 + countInDir(px, py, dx, dy, opponent) + countInDir(px, py, -dx, -dy, opponent);
                     if (count >= threatLength) numThreats++;
                 }
                 delete board[`${px},${py}`];
